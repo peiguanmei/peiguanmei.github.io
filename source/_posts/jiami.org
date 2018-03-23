@@ -1,0 +1,39 @@
+---
+title: hexo文章加密
+date: 2018-03-22 19:19:00
+tags: hexo加密
+categories: hexo加密
+password: p
+---
+
+#+OPTIONS: ^:nil
+
+* hexo文章加密
+打开themes->next->layout->_partials->head.swig文件,在18行左右插入这样一段代码：
+
+#+BEGIN_SRC js
+<script>
+    (function(){
+        if('{{ page.password }}'){
+            if (prompt('请输入文章密码') !== '{{ page.password }}'){
+                alert('密码错误！');
+                history.back();
+            }
+        }
+    })();
+</script>
+#+END_SRC
+
+然后在org文件中添加password属性
+
+#+BEGIN_EXAMPLE
+---
+title: todo
+date: 2018-03-22
+tags: todo
+categories: todo
+password: yourpassword
+---
+#+END_EXAMPLE
+
+* 在手机端好像可以照常访问

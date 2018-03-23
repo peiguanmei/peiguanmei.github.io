@@ -1,0 +1,6 @@
+#+TITLE: new-post
+#+DATE: 2018-03-22
+#+LAYOUT: post
+#+TAGS:
+#+CATEGORIES:
+use org-admin test

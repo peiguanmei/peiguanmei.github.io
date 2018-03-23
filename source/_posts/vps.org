@@ -1,0 +1,292 @@
+#+OPTIONS: ^:nil
+#+STARTUP: indent
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="/home/p/works/peiguanmei.github.io/css4org/style.css"/>
+#+TITLE: 在vultr上安装archlinux
+
+* 安装arch
+   + fdisk -l 查看系统硬盘
+   + fdisk /dev/sda 对硬盘分区，vps上只分了一个swap分区，其余的都是/分区
+     - 输入n，建立一个新的分区，磁盘空间从2048扇区开始，一个扇区是512B，分给swap1G空间，
+       1G=1024*1024*1024B/512=2097152扇区，所以扇区结束地址是2048+2097152=2099200
+     - 接下来另外一个分区就是剩余空间，继续创建分区,然后按enter即可,最后输入w保存
+   + 查看分区情况lsblk
+     - 用cat /proc/paritions可以查看分区是否生效，或者用 partprobe /dev/sda 刷新
+   + 对分区格式化
+     - 格式化swap分区  mkswap /dev/sda1  启用swap  swapon /dev/sda1
+     - 格式化/分区  mkfs.ext4 /dev/sda2  挂载目录 mount /dev/sda2 /mnt
+   + 安装系统 
+     - 由于是vps，不需要重新配置pacman源，直接 pacstrap /mnt base base-devel
+     - 生成fstab   genfstab -U -p /mnt >> /mnt/etc/fstab
+     - chroot到新系统配置  arch-chroot /mnt /bin/bash
+     - 设置语言环境 echo LANG=en_US.UTF-8  > /etc/locale.conf
+                  vi /etc/locale.conf 去掉en_US.UTF-8和zh_CN.UTF-8前的注释
+                  locale-gen更新语言
+     - 设置主机名字和密码  echo p > /etc/hostname    passwd
+     - 安装net工具  pacman -S net-tools  dnsutils inetutils
+     - 安装grub(不确定不安装是否可以) pacman -S grub os-prober
+                                      grub-install --target=i386-pc --recheck  /dev/sda
+                                      grub-mkconfig -o /boot/grub/grub.cfg
+     - 开机启动网络守护进程  systemctl enable/start dhcpcd
+     - 卸载分区  exit   umount /mnt -R
+* 安装shadowsock
+   pacman -S shadowsocks
+
+   vim /etc/shadowsocks/shadowsocks.json
+   {
+       "server":"0.0.0.0",
+       "server_port":8485,
+       "local_address":"127.0.0.1",
+       "password":"yourpassword",
+       "timeout":600,
+       "method":"rc4-md5",
+       "fast_open":false,
+       "workers":1
+   }
+   启动 ssserver -c /etc/shadowsocks/example.json -d start
+   或者 systemctl start shadowsocks-server@shadowsocks
+* ssh配置
+    + 安装openssh  pacman -S openssh
+    + 配置ssh  
+       - vim /etc/ssh/sshd_config   修改默认Port端口,修改PermitRootLogin  yes ,修改 password yes
+       - 启动守护进程  systemctl enable/start sshd
+    + 其他机器配置秘钥登录   ssh-keygen -t rsa
+      ssh-copy-id -i ~/.ssh/id_rsa.pub -p 44422  root@45.77.16.202
+    + ssh优化   打开 UseDNS no 和  GSSAPIAuthentication no 前面的注释
+* 建站软件
+    pacman -S nginx mariadb phpadmin jdk8-openjdk tomcat 
+    + mysql安装后设置
+      - mysql_install_db --user=mysql --basedir=/usr --datadir=/var/lib/mysql
+      - systemctl start mysqld
+      - mysqld_safe --skip-grant-tables &
+      - update user set authentication_string=password('XXXX') where user='root';
+      - SET PASSWORD = PASSWORD('your_new_password');
+      - set password for root@localhost = password('root');
+      - CREATE USER 'monty'@'localhost' IDENTIFIED BY 'some_pass';
+      - GRANT ALL PRIVILEGES ON *.* TO 'SPIKE'@'localhost'  IDENTIFIED BY 'password';
+      - flush privileges;
+    + mysql 远程登录无法连接
+      - 允许root从任何主机上连接
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'mypassword' WITH GRANT OPTION;
+        flush privileges;
+      - 只允许从ip为192.168.1.3的主机上连接
+        GRANT ALL PRIVILEGES ON *.* TO 'root'@'192.168.1.3' IDENTIFIED BY 'mypassword' WITH GRANT OPTION;
+
+    + nginx配置
+      - 启动 systemctl enable/start nginx
+      - tomcat端口转发  配置/etc/nginx/nginx.conf
+                       修改server_name   www.peiguanmei.com
+                       在location / 块中添加 proxy_pass  http://www.peiguanmei.com
+      - 静态文件分离  ROOT目录是从tomcat的webapp中拷贝出来的
+        添加   location ~ \.(js|css|html|jpg|png|gif|swf|flv|mp3|mp4|zip|rar) {
+                  root  /usr/local/ROOT/;
+              }
+      - 使用 nginx -t 可以测试配置文件是否正确
+      - 修改配置后使用 nginx -s reload 重载或者直接重启服务
+      - 1个网站转发多个端口(注意 最后一个的proxy端口号后是不带 “/” 的）
+              location /blog/ {
+                  proxy_pass http://peiguanmei.com:4000/;
+              }
+              location /web/ {
+                  proxy_pass http://peiguanmei.com:8090/;
+              }
+              location / {
+                  proxy_pass http://peiguanmei.com:8080;
+                  root /www/www.peiguanmei.com/
+                  index index.html
+              }
+      - 80端口服务器转发多个域名
+              server {
+                  listen 80;
+                  server_name spike.com;
+                  location  {
+                      # 下面的同样要加
+                      proxy_redirect off;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_pass http://peiguanmei.com:8090;
+                  }
+                  access_log logs/tomcat1_access.log;
+              }
+              server {
+                  listen 80;
+                  server_name peiguanmei.com;
+                  location  {
+                      proxy_pass http://peiguanmei.com:8080;
+                  }
+                  access_log logs/tomcat2_access.log;
+              }
+               
+
+       - 301绝对跳转 (github.io/后面可以加$1 相当于http://peiguanmei.github.io/github/)
+               location /github/ {
+                   rewrite ^/(.*)$ http://peiguanmei.github.io/;
+    + tomcat配置
+       - 启动 systemctl enable/start tomcat8
+       - 修改manager   vim /etc/tomcat8/tomcat-user.xml
+                      <role rolename="manager-gui"/> 
+                      <user username="admin" password="password" roles="manager-gui"/>
+    + ftp配置
+       - pacman -S vsftpd
+       - vim /etc/vsftpd.conf 
+       - ftp客户端快速登录连接不上，需要在站点中修改加密为 只使用普通ftp(不安全)
+       - 创建一个普通用户安装yaourt   useradd -m -g users -G wheel -s /bin/bash spike
+       - git clone https://aur.archlinux.org/package-query.git
+       - git clone https://aur.archlinux.org/yaourt.git
+       - makepkg -si
+       - yaourt  -S  pure-ftpd
+
+   +  查看端口占用  netstat -anp | grep pure-ftpd
+      
+* hexo设置
+   +  安装nvm  
+      wget -qO- https://raw.github.com/creationix/nvm/master/install.sh | sh
+   +  安装node
+      - 安装最新版本  nvm install stable
+      - 安装lts稳定版  nvm install v6.11.4
+      - 查看和删除node  nvm ls   |   nvm uninstall stable
+      - 切换node版本  nvm use v6.11.4
+      - 使用默认node，安装完后需要执行 nvm alias current v6.11.4 否则会找不到node
+      - 解决使用nvm导致打开终端速度慢的问题
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" --no-use # This loads nvm
+            alias node='unalias node ; unalias npm ; nvm use default ; node $@'
+            alias npm='unalias node ; unalias npm ; nvm use default ; npm $@
+      - 安装hexo npm install -g hexo-cli
+   +  hexo配置
+      - hexo init <folder>
+      - cd <folder>
+      - npm install
+      - 将写好的md文件变成html  hexo generate 或者 hexo g
+      - 本地启动    hexo server 或者 hexo s    
+        输入地址 http://localhost:4000访问
+        部署    hexo deploy 或者 hexo d
+        清除    hexo clean
+      - hexo主题配置 cd themes &&  git clone https://github.com/SuperKieran/TKL
+                    更新  cd TKL && git pull
+                    
+* 域名解析
+
+* 开启bbr加速
+sudo modprobe tcp_bbr 查看是否有错误
+vim /etc/modules-load.d/80-bbr.conf    添加 tcp_bbr
+cat /proc/sys/net/ipv4/tcp_available_congestion_control 看是否有 bbr
+sudo sysctl net.ipv4.tcp.tcp_congestion_control=bbr
+vim /etc/sysctl.d/80-bbr.conf   添加 net.ipv4.tcp_congestion_control = bbr
+
+* tor代理
+pacman -S tor
+vim /etc/tor/torrc 添加下面的3行
+SOCKS5Proxy 127.0.0.1:1080
+ExcludeNodes {cn},{hk},{mo},{kp},{ir},{sy},{pk},{cu},{vn} #屏蔽蜜罐节点
+strictnodes 1 # 严格节点模式
+启动  tar  或者  systemctl start tor
+配置浏览器代理 127.0.0.1:9050
+
+* 将vps改成archlinux
+sudo apt-get update && sudo apt-get upgrade
+sudo apt-get install git
+git clone https://github.com/drizzt/vps2arch.git
+cd vps2arch
+chmod +x ./vps2arch
+./vps2arch
+###########如果您的VPS位于国内，则建议修改一下vps2arch脚本#############
+vim vps2arch
+#修改位于第324行的如下参数
+: ${mirrors:="http://mirror.rackspace.com/archlinux http://dgix.ru/mirrors/archlinux"}
+改为
+: ${mirrors:="https://mirrors.ustc.edu.cn/archlinux https://mirrors.tuna.tsinghua.edu.cn/archlinux"}
+#####################################################################
+reboot -f #请使用该命令重启VPS
+
+初始化archlinux
+
+vi /etc/pacman.d/mirrorlist
+###Add up some fastest mirrors on the top of this file，maybe not necessarily needed#########
+useradd -m -g users -G audio,lp,optical,storage,video,wheel,games,network,power -s /bin/bash yourname
+passwd yourname
+pacman -Syu
+pacman -S sudo fakeroot git wget htop docker zsh tmux vim
+pacman -R vi ###在这里吐槽一下Arch，默认的编辑器本来是vim，但是竟然又被偷偷换回了vi
+vim /etc/locale.gen #####注释掉en_US等等
+locale-gen ###生成locale
+export EDITOR=vim
+visudo #########Scroll down and delete or modify the comments before the lines below:########################
+yourname ALL=(ALL) NOPASSWD: ALL #When you want to escalate without typing the password into the password frame.
+#######################################################
+exit root and login to "yourname" using your authenticate.
+#######################################################
+Now you are logged in as 'yourname'
+sh -c "$(wget https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh -O -)"
+chsh -s /bin/zsh #type your password
+mkdir .ssh
+cd .ssh
+touch authorized_keys
+sudo vim authorized_keys
+sudo vim /etc/ssh/sshd_config
+
+
+sshd_config配置
+
+PermitRootLogin no
+RSAAuthentication yes
+PubkeyAuthentication yes
+PasswordAuthentication no
+PermitEmptyPasswords no
+ChallengeResponseAuthentication no
+AuthorizedKeysFile .ssh/authorized_keys
+
+
+防火墙
+
+pacman -S ufw
+
+ufw default reject
+ufw allow 22/tcp
+ufw allow in http
+ufw allow in https
+vim /etc/ufw/before.rules
+#修改配置#允许ping
+-A ufw-before-input -p icmp --icmp-type echo-request -j ACCEPT
+#禁止ping
+-A ufw-before-input -p icmp --icmp-type echo-request -j DROP
+sudo ufw enable
+* test
+abcedfe
+abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopq
+abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyz
+abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyz
+中文测试abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyz
+###########如果您的VPS位于国内，则建议修改一下vps2arch脚本#############
+###########如果您的VPS位于国内，则建议修改一下vps2arch脚本#############中文测试中文测试中文测试中文测试中文测试作为测试作为而啊我是浪费子哦啦时间哦啊i奥啦
+如果您的VPS位于国内，则建议修改一下vps2arch脚本中文测试中文测试中文测试中文测试中文测试作为测试作为而啊我是浪费子哦啦时间哦啊i奥啦中我开始偶尔u哦哦啊剖
+
+2如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
+3如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
+4如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
+5如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
+
+6如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样
+呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样
+呢7如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎
+样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎
+样呢8如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又
+怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又
+怎样呢9如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话
+又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话
+又怎样呢
+* 中文导出自动换行
+   3种系统提供的类加载器种类: 启动类加载器  <-   扩展类加载器  <-  应用程序类加载器  <-  自定义类加载器
+
+   java双亲委派机制:如果一个类加载器收到了类加载的请求,它首先不会自己去加载这个
+   类,而是吧这个请求委派给父类加载器去完成,没一个层次的加载器都是这样. 因此所有
+   的加载请求最终都应该传送到顶层的启动类加载其中,只有当父加载器反馈自己无法完成
+   这个加载请求(它的搜索范围没有找到所需要的类)时,子加载器才会尝试自己去加载.
+
+   破坏双亲委派机制:
+
+   this is a soft
+   huan hang
+   this is a test about soft
+   line-breaks for ox,这里有一个软
+   换行.

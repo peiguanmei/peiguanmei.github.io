@@ -1,0 +1,21 @@
+#+OPTIONS: ^:nil
+
+---
+title: blog-admin
+date: 2018-03-22 19:19:00
+tags: hexo
+categories: hexo
+password: p
+---
+
+* install
+** from github
+add this code to your org-mode-config
+#+BEGIN_SRC lisp
+  (blog-admin :location (recipe
+                          :fetcher github
+                          :repo "codefalling/blog-admin"))
+
+#+END_SRC
+** from melpa
+add "blog-admin" in dotspacemacs/user-config()
