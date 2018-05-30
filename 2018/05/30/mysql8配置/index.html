@@ -104,7 +104,7 @@
 <meta property="og:site_name" content="for p">
 <meta property="og:description" content="1 archlinux上安装mysql8   安装 pacman -S mysql  根据提示执行 mysqld &amp;#x2013;initialize &amp;#x2013;user=mysql &amp;#x2013;basedir=/usr &amp;#x2013;datadir=/var/lib/mysql  启动进程 systemctl start mysqld 如果启动失败可以重启后再试一次或者重新安">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2018-05-30T06:38:45.000Z">
+<meta property="og:updated_time" content="2018-05-30T06:40:14.220Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="mysql8配置">
 <meta name="twitter:description" content="1 archlinux上安装mysql8   安装 pacman -S mysql  根据提示执行 mysqld &amp;#x2013;initialize &amp;#x2013;user=mysql &amp;#x2013;basedir=/usr &amp;#x2013;datadir=/var/lib/mysql  启动进程 systemctl start mysqld 如果启动失败可以重启后再试一次或者重新安">
@@ -335,7 +335,7 @@
               
                 <span class="post-meta-item-text">更新于&#58;</span>
               
-              <time title="更新于" itemprop="dateModified" datetime="2018-05-30T14:38:45+08:00">
+              <time title="更新于" itemprop="dateModified" datetime="2018-05-30T14:40:14+08:00">
                 2018-05-30
               </time>
             
@@ -440,11 +440,10 @@ mysql_connect_java的jar包,否则也会连接不上,这个坑了一段时间.
 </li>
 <li>查看用户权限 show grants for 'spike'@'%';
 </li>
+<li>root默认的host是localhost,代表仅限localhost登录访问,如果需要允许所有ip访问,需要把localhost改成%
+执行 update user set Host='%' where User='root';
+</li>
 </ol>
-<p>
-10.root默认的host是localhost,代表仅限localhost登录访问,如果需要允许所有ip访问,需要把localhost改成%
-   执行 update user set Host='%' where User='root';
-</p>
 </div>
 </div>
 
