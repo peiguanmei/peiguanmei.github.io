@@ -336,7 +336,7 @@
               
                 <span class="post-meta-item-text">更新于&#58;</span>
               
-              <time title="更新于" itemprop="dateModified" datetime="2018-05-30T14:33:21+08:00">
+              <time title="更新于" itemprop="dateModified" datetime="2018-05-30T14:38:45+08:00">
                 2018-05-30
               </time>
             
@@ -421,19 +421,30 @@
 <div id="outline-container-sec-1" class="outline-2">
 <h2 id="sec-1"><span class="section-number-2">1</span> archlinux上安装mysql8</h2>
 <div class="outline-text-2" id="text-1">
+<ol class="org-ol">
+<li>安装 pacman -S mysql
+</li>
+<li>根据提示执行 mysqld &#x2013;initialize &#x2013;user=mysql &#x2013;basedir=/usr &#x2013;datadir=/var/lib/mysql
+</li>
+<li>启动进程 systemctl start mysqld 如果启动失败可以重启后再试一次或者重新安装
+</li>
+<li>登录 第2步中会默认生成一个初始密码,使用 mysql -hlocalhost -uroot -p登陆
+</li>
+<li>修改root密码 alter user 'root'@'localhost' identified with mysql_native_password by 'xxx'
+mysql8默认使用caching_sha2_password,当前有些工具不支持,需要改成mysql_native_password,可以修改/etc/mysql/mc.conf,
+添加 default_authentication_plugin=mysql_native_password,有时候程序连接不上数据库就是这个原因,另外有些时候需要更新
+mysql_connect_java的jar包,否则也会连接不上,这个坑了一段时间.
+</li>
+<li>查看默认用户等操作 select user,host,plugin,authentication_string from mysql.user;
+</li>
+<li>创建用户 create user 'spike'@'%' identified with mysql_native_password by 'xxx';
+</li>
+<li>授权远程数据库 grant all privileges on <b>.</b> to 'spike'@'%';
+</li>
+<li>查看用户权限 show grants for 'spike'@'%';
+</li>
+</ol>
 <p>
-1.安装 pacman -S mysql
-2.根据提示执行 mysqld &#x2013;initialize &#x2013;user=mysql &#x2013;basedir=/usr &#x2013;datadir=/var/lib/mysql
-3.启动进程 systemctl start mysqld 如果启动失败可以重启后再试一次或者重新安装
-4.登录 第2步中会默认生成一个初始密码,使用 mysql -hlocalhost -uroot -p登陆
-5.修改root密码 alter user 'root'@'localhost' identified with mysql_native_password by 'xxx'
-  mysql8默认使用caching_sha2_password,当前有些工具不支持,需要改成mysql_native_password,可以修改/etc/mysql/mc.conf,
-  添加 default_authentication_plugin=mysql_native_password,有时候程序连接不上数据库就是这个原因,另外有些时候需要更新
-  mysql_connect_java的jar包,否则也会连接不上,这个坑了一段时间.
-6.查看默认用户等操作 select user,host,plugin,authentication_string from mysql.user;
-7.创建用户 create user 'spike'@'%' identified with mysql_native_password by 'xxx';
-8.授权远程数据库 grant all privileges on <b>.</b> to 'spike'@'%';
-9.查看用户权限 show grants for 'spike'@'%';
 10.root默认的host是localhost,代表仅限localhost登录访问,如果需要允许所有ip访问,需要把localhost改成%
    执行 update user set Host='%' where User='root';
 </p>
@@ -718,8 +729,8 @@
               
                 <span class="post-meta-item-text">更新于&#58;</span>
               
-              <time title="更新于" itemprop="dateModified" datetime="2018-03-24T15:46:05+08:00">
-                2018-03-24
+              <time title="更新于" itemprop="dateModified" datetime="2018-05-30T14:38:52+08:00">
+                2018-05-30
               </time>
             
           </span>
@@ -774,11 +785,7 @@
 
       
         
-          
-            
-
-
-<div id="outline-container-sec-1" class="outline-2">
+          <div id="outline-container-sec-1" class="outline-2">
 <h2 id="sec-1"><span class="section-number-2">1</span> 安装arch</h2>
 <div class="outline-text-2" id="text-1">
 <ul class="org-ul">
@@ -833,441 +840,14 @@ grub-mkconfig -o /boot/grub/grub.cfg
 </li>
 </ul>
 </li>
-</ul>
-</div>
-</div>
-<div id="outline-container-sec-2" class="outline-2">
-<h2 id="sec-2"><span class="section-number-2">2</span> 安装shadowsock</h2>
-<div class="outline-text-2" id="text-2">
-<p>
-pacman -S shadowsocks
-</p>
-
-<p>
-vim /etc/shadowsocks/shadowsocks.json
-{
-    "server":"0.0.0.0",
-    "server_port":8485,
-    "local_address":"127.0.0.1",
-    "password":"yourpassword",
-    "timeout":600,
-    "method":"rc4-md5",
-    "fast_open":false,
-    "workers":1
-}
-启动 ssserver -c /etc/shadowsocks/example.json -d start
-或者 systemctl start shadowsocks-server@shadowsocks
-</p>
-</div>
-</div>
-<div id="outline-container-sec-3" class="outline-2">
-<h2 id="sec-3"><span class="section-number-2">3</span> ssh配置</h2>
-<div class="outline-text-2" id="text-3">
-<ul class="org-ul">
-<li>安装openssh  pacman -S openssh
-</li>
-<li>配置ssh
-<ul class="org-ul">
-<li>vim /etc/ssh/sshd_config   修改默认Port端口,修改PermitRootLogin  yes ,修改 password yes
-</li>
-<li>启动守护进程  systemctl enable/start sshd
-</li>
-</ul>
-</li>
-<li>其他机器配置秘钥登录   ssh-keygen -t rsa
-ssh-copy-id -i ~/.ssh/id_rsa.pub -p 44422  root@45.77.16.202
-</li>
-<li>ssh优化   打开 UseDNS no 和  GSSAPIAuthentication no 前面的注释
-</li>
-</ul>
-</div>
-</div>
-<div id="outline-container-sec-4" class="outline-2">
-<h2 id="sec-4"><span class="section-number-2">4</span> 建站软件</h2>
-<div class="outline-text-2" id="text-4">
-<p>
-pacman -S nginx mariadb phpadmin jdk8-openjdk tomcat
-</p>
-<ul class="org-ul">
-<li>mysql安装后设置
-<ul class="org-ul">
-<li>mysql_install_db &#x2013;user=mysql &#x2013;basedir=/usr &#x2013;datadir=/var/lib/mysql
-</li>
-<li>systemctl start mysqld
-</li>
-<li>mysqld_safe &#x2013;skip-grant-tables &amp;
-</li>
-<li>update user set authentication_string=password('XXXX') where user='root';
-</li>
-<li>SET PASSWORD = PASSWORD('your_new_password');
-</li>
-<li>set password for root@localhost = password('root');
-</li>
-<li>CREATE USER 'monty'@'localhost' IDENTIFIED BY 'some_pass';
-</li>
-<li>GRANT ALL PRIVILEGES ON <b>.</b> TO 'SPIKE'@'localhost'  IDENTIFIED BY 'password';
-</li>
-<li>flush privileges;
-</li>
-</ul>
-</li>
-<li>mysql 远程登录无法连接
-<ul class="org-ul">
-<li>允许root从任何主机上连接
-GRANT ALL PRIVILEGES ON <b>.</b> TO 'root'@'%' IDENTIFIED BY 'mypassword' WITH GRANT OPTION;
-flush privileges;
-</li>
-<li>只允许从ip为192.168.1.3的主机上连接
-GRANT ALL PRIVILEGES ON <b>.</b> TO 'root'@'192.168.1.3' IDENTIFIED BY 'mypassword' WITH GRANT OPTION;
-</li>
-</ul>
-</li>
-
-<li>nginx配置
-<ul class="org-ul">
-<li>启动 systemctl enable/start nginx
-</li>
-<li>tomcat端口转发  配置/etc/nginx/nginx.conf
-修改server_name   www.peiguanmei.com
-在location / 块中添加 proxy_pass  <a href="http://www.peiguanmei.com" target="_blank" rel="noopener">http://www.peiguanmei.com</a>
-</li>
-<li>静态文件分离  ROOT目录是从tomcat的webapp中拷贝出来的
-添加   location ~ \.(js|css|html|jpg|png|gif|swf|flv|mp3|mp4|zip|rar) {
-          root  <i>usr/local/ROOT</i>;
-      }
-</li>
-<li>使用 nginx -t 可以测试配置文件是否正确
-</li>
-<li>修改配置后使用 nginx -s reload 重载或者直接重启服务
-</li>
-<li>1个网站转发多个端口(注意 最后一个的proxy端口号后是不带 “/” 的）
-location <i>blog</i> {
-    proxy_pass <a href="http://peiguanmei.com:4000/">http://peiguanmei.com:4000/</a>;
-}
-location <i>web</i> {
-    proxy_pass <a href="http://peiguanmei.com:8090/">http://peiguanmei.com:8090/</a>;
-}
-location / {
-    proxy_pass <a href="http://peiguanmei.com:8080">http://peiguanmei.com:8080</a>;
-    root <i>www/www.peiguanmei.com</i>
-    index index.html
-}
-</li>
-<li>80端口服务器转发多个域名
-server {
-    listen 80;
-    server_name spike.com;
-    location  {
-<p>
-        proxy_redirect off;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_pass <a href="http://peiguanmei.com:8090">http://peiguanmei.com:8090</a>;
-    }
-    access_log logs/tomcat1_access.log;
-}
-server {
-    listen 80;
-    server_name peiguanmei.com;
-    location  {
-        proxy_pass <a href="http://peiguanmei.com:8080">http://peiguanmei.com:8080</a>;
-    }
-    access_log logs/tomcat2_access.log;
-}
-</p>
-</li>
-</ul>
-</li>
-</ul>
-
-
-<ul class="org-ul">
-<li>301绝对跳转 (github.io/后面可以加\(1 相当于http://peiguanmei.github.io/github/)
-               location /github/ {
-                   rewrite ^/(.*)\) <a href="http://peiguanmei.github.io/" target="_blank" rel="noopener">http://peiguanmei.github.io/</a>;
-</li>
-<li>tomcat配置
-<ul class="org-ul">
-<li>启动 systemctl enable/start tomcat8
-</li>
-<li>修改manager   vim /etc/tomcat8/tomcat-user.xml
-&lt;role rolename="manager-gui"/&gt;
-&lt;user username="admin" password="password" roles="manager-gui"/&gt;
-</li>
-</ul>
-</li>
-<li>ftp配置
-<ul class="org-ul">
-<li>pacman -S vsftpd
-</li>
-<li>vim /etc/vsftpd.conf
-</li>
-<li>ftp客户端快速登录连接不上，需要在站点中修改加密为 只使用普通ftp(不安全)
-</li>
-<li>创建一个普通用户安装yaourt   useradd -m -g users -G wheel -s /bin/bash spike
-</li>
-<li>git clone <a href="https://aur.archlinux.org/package-query.git" target="_blank" rel="noopener">https://aur.archlinux.org/package-query.git</a>
-</li>
-<li>git clone <a href="https://aur.archlinux.org/yaourt.git" target="_blank" rel="noopener">https://aur.archlinux.org/yaourt.git</a>
-</li>
-<li>makepkg -si
-</li>
-<li>yaourt  -S  pure-ftpd
-</li>
-</ul>
-</li>
-
-<li>查看端口占用  netstat -anp | grep pure-ftpd
-</li>
-</ul>
-</div>
-</div>
-
-<div id="outline-container-sec-5" class="outline-2">
-<h2 id="sec-5"><span class="section-number-2">5</span> hexo设置</h2>
-<div class="outline-text-2" id="text-5">
-<ul class="org-ul">
-<li>安装nvm
-wget -qO- <a href="https://raw.github.com/creationix/nvm/master/install.sh" target="_blank" rel="noopener">https://raw.github.com/creationix/nvm/master/install.sh</a> | sh
-</li>
-<li>安装node
-<ul class="org-ul">
-<li>安装最新版本  nvm install stable
-</li>
-<li>安装lts稳定版  nvm install v6.11.4
-</li>
-<li>查看和删除node  nvm ls   |   nvm uninstall stable
-</li>
-<li>切换node版本  nvm use v6.11.4
-</li>
-<li>使用默认node，安装完后需要执行 nvm alias current v6.11.4 否则会找不到node
-</li>
-<li>解决使用nvm导致打开终端速度慢的问题
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] &amp;&amp; . "$NVM_DIR/nvm.sh" &#x2013;no-use # This loads nvm
-alias node='unalias node ; unalias npm ; nvm use default ; node $@'
-alias npm='unalias node ; unalias npm ; nvm use default ; npm $@
-</li>
-<li>安装hexo npm install -g hexo-cli
-</li>
-</ul>
-</li>
-<li>hexo配置
-<ul class="org-ul">
-<li>hexo init &lt;folder&gt;
-</li>
-<li>cd &lt;folder&gt;
-</li>
-<li>npm install
-</li>
-<li>将写好的md文件变成html  hexo generate 或者 hexo g
-</li>
-<li>本地启动    hexo server 或者 hexo s
-输入地址 <a href="http://localhost:4000%E8%AE%BF%E9%97%AE" target="_blank" rel="noopener">http://localhost:4000%E8%AE%BF%E9%97%AE</a>
-部署    hexo deploy 或者 hexo d
-清除    hexo clean
-</li>
-<li>hexo主题配置 cd themes &amp;&amp;  git clone <a href="https://github.com/SuperKieran/TKL" target="_blank" rel="noopener">https://github.com/SuperKieran/TKL</a>
-                    更新  cd TKL &amp;&amp; git pull
-</li>
-</ul>
-</li>
-</ul>
-</div>
-</div>
-
-<div id="outline-container-sec-6" class="outline-2">
-<h2 id="sec-6"><span class="section-number-2">6</span> 域名解析</h2>
-</div>
-
-<div id="outline-container-sec-7" class="outline-2">
-<h2 id="sec-7"><span class="section-number-2">7</span> 开启bbr加速</h2>
-<div class="outline-text-2" id="text-7">
-<p>
-sudo modprobe tcp_bbr 查看是否有错误
-vim /etc/modules-load.d/80-bbr.conf    添加 tcp_bbr
-cat /proc/sys/net/ipv4/tcp_available_congestion_control 看是否有 bbr
-sudo sysctl net.ipv4.tcp.tcp_congestion_control=bbr
-vim /etc/sysctl.d/80-bbr.conf   添加 net.ipv4.tcp_congestion_control = bbr
-</p>
-</div>
-</div>
-
-<div id="outline-container-sec-8" class="outline-2">
-<h2 id="sec-8"><span class="section-number-2">8</span> tor代理</h2>
-<div class="outline-text-2" id="text-8">
-<p>
-pacman -S tor
-vim /etc/tor/torrc 添加下面的3行
-SOCKS5Proxy 127.0.0.1:1080
-ExcludeNodes {cn},{hk},{mo},{kp},{ir},{sy},{pk},{cu},{vn} #屏蔽蜜罐节点
-strictnodes 1 # 严格节点模式
-启动  tar  或者  systemctl start tor
-配置浏览器代理 127.0.0.1:9050
-</p>
-</div>
-</div>
-
-<div id="outline-container-sec-9" class="outline-2">
-<h2 id="sec-9"><span class="section-number-2">9</span> 将vps改成archlinux</h2>
-<div class="outline-text-2" id="text-9">
-<p>
-sudo apt-get update &amp;&amp; sudo apt-get upgrade
-sudo apt-get install git
-git clone <a href="https://github.com/drizzt/vps2arch.git" target="_blank" rel="noopener">https://github.com/drizzt/vps2arch.git</a>
-cd vps2arch
-chmod +x ./vps2arch
-./vps2arch
-###########如果您的VPS位于国内，则建议修改一下vps2arch脚本#############
-vim vps2arch
-#修改位于第324行的如下参数
-</p>
-<pre class="example">
-${mirrors:="http://mirror.rackspace.com/archlinux http://dgix.ru/mirrors/archlinux"}
-</pre>
-<p>
-改为
-</p>
-<pre class="example">
-${mirrors:="https://mirrors.ustc.edu.cn/archlinux https://mirrors.tuna.tsinghua.edu.cn/archlinux"}
-</pre>
-<p>
-#####################################################################
-reboot -f #请使用该命令重启VPS
-</p>
-
-<p>
-初始化archlinux
-</p>
-
-<p>
-vi /etc/pacman.d/mirrorlist
-###Add up some fastest mirrors on the top of this file，maybe not necessarily needed#########
-useradd -m -g users -G audio,lp,optical,storage,video,wheel,games,network,power -s /bin/bash yourname
-passwd yourname
-pacman -Syu
-pacman -S sudo fakeroot git wget htop docker zsh tmux vim
-pacman -R vi ###在这里吐槽一下Arch，默认的编辑器本来是vim，但是竟然又被偷偷换回了vi
-vim /etc/locale.gen #####注释掉en_US等等
-locale-gen ###生成locale
-export EDITOR=vim
-visudo #########Scroll down and delete or modify the comments before the lines below:########################
-yourname ALL=(ALL) NOPASSWD: ALL #When you want to escalate without typing the password into the password frame.
-#######################################################
-exit root and login to "yourname" using your authenticate.
-#######################################################
-Now you are logged in as 'yourname'
-sh -c "$(wget <a href="https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh" target="_blank" rel="noopener">https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh</a> -O -)"
-chsh -s /bin/zsh #type your password
-mkdir .ssh
-cd .ssh
-touch authorized_keys
-sudo vim authorized_keys
-sudo vim /etc/ssh/sshd_config
-</p>
-
-
-<p>
-sshd_config配置
-</p>
-
-<p>
-PermitRootLogin no
-RSAAuthentication yes
-PubkeyAuthentication yes
-PasswordAuthentication no
-PermitEmptyPasswords no
-ChallengeResponseAuthentication no
-AuthorizedKeysFile .ssh/authorized_keys
-</p>
-
-
-<p>
-防火墙
-</p>
-
-<p>
-pacman -S ufw
-</p>
-
-<p>
-ufw default reject
-ufw allow 22/tcp
-ufw allow in http
-ufw allow in https
-vim /etc/ufw/before.rules
-#修改配置#允许ping
--A ufw-before-input -p icmp &#x2013;icmp-type echo-request -j ACCEPT
-#禁止ping
--A ufw-before-input -p icmp &#x2013;icmp-type echo-request -j DROP
-sudo ufw enable
-</p>
-</div>
-</div>
-<div id="outline-container-sec-10" class="outline-2">
-<h2 id="sec-10"><span class="section-number-2">10</span> test</h2>
-<div class="outline-text-2" id="text-10">
-<p>
-abcedfe
-abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopq
-abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyz
-abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyz
-中文测试abcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyzabcedefhigklmnopqrstuvwxyz
-###########如果您的VPS位于国内，则建议修改一下vps2arch脚本#############
-###########如果您的VPS位于国内，则建议修改一下vps2arch脚本#############中文测试中文测试中文测试中文测试中文测试作为测试作为而啊我是浪费子哦啦时间哦啊i奥啦
-如果您的VPS位于国内，则建议修改一下vps2arch脚本中文测试中文测试中文测试中文测试中文测试作为测试作为而啊我是浪费子哦啦时间哦啊i奥啦中我开始偶尔u哦哦啊剖
-</p>
-
-<p>
-2如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
-3如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
-4如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
-5如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话如果可以的话不行的话
-</p>
-
-<p>
-6如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样
-呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样
-呢7如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎
-样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎
-样呢8如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又
-怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又
-怎样呢9如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话
-又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话又怎样呢如果不行的话
-又怎样呢
-</p>
-</div>
-</div>
-<div id="outline-container-sec-11" class="outline-2">
-<h2 id="sec-11"><span class="section-number-2">11</span> 中文导出自动换行</h2>
-<div class="outline-text-2" id="text-11">
-<p>
-3种系统提供的类加载器种类: 启动类加载器  &lt;-   扩展类加载器  &lt;-  应用程序类加载器  &lt;-  自定义类加载器
-</p>
-
-<p>
-java双亲委派机制:如果一个类加载器收到了类加载的请求,它首先不会自己去加载这个
-类,而是吧这个请求委派给父类加载器去完成,没一个层次的加载器都是这样. 因此所有
-的加载请求最终都应该传送到顶层的启动类加载其中,只有当父加载器反馈自己无法完成
-这个加载请求(它的搜索范围没有找到所需要的类)时,子加载器才会尝试自己去加载.
-</p>
-
-<p>
-破坏双亲委派机制:
-</p>
-
-<p>
-this is a soft
-huan hang
-this is a test about soft
-line-breaks for ox,这里有一个软
-换行.
-</p>
-</div>
-</div>
-
-          
+</ul></div></div>
+          <!--noindex-->
+          <div class="post-button text-center">
+            <a class="btn" href="/2018/03/24/vps/#more" rel="contents">
+              阅读全文 &raquo;
+            </a>
+          </div>
+          <!--/noindex-->
         
       
     </div>
